@@ -1,0 +1,376 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net: default-deny everything
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- GLOBAL HARDENED PRIMITIVES ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidTimestamp(ts) {
+      return ts is timestamp && ts <= request.time;
+    }
+
+    // --- VALIDATION BLUEPRINTS (ANTI-UPDATE-GAP) ---
+
+    function isValidUserProfile(data) {
+      return data.keys().hasAll([
+               'userId', 'displayName', 'channelName', 'email', 'bio',
+               'preferredLanguage', 'darkModePreference', 'accessTier',
+               'notificationsEnabled', 'backgroundPlaybackEnabled',
+               'createdAt', 'updatedAt'
+             ]) &&
+             data.keys().hasOnly([
+               'userId', 'displayName', 'channelName', 'email', 'bio',
+               'photoUrl', 'preferredLanguage', 'darkModePreference',
+               'accessTier', 'activeKeyCode', 'notificationsEnabled',
+               'backgroundPlaybackEnabled', 'createdAt', 'updatedAt'
+             ]) &&
+             data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 60 &&
+             data.channelName is string && data.channelName.size() >= 1 && data.channelName.size() <= 60 &&
+             data.email is string && data.email.size() <= 120 &&
+             data.bio is string && data.bio.size() <= 240 &&
+             (!('photoUrl' in data) || data.photoUrl == null || (data.photoUrl is string && data.photoUrl.size() <= 500)) &&
+             (!('activeKeyCode' in data) || data.activeKeyCode == null || (data.activeKeyCode is string && data.activeKeyCode.size() <= 40)) &&
+             data.preferredLanguage in ['en', 'hi', 'hinglish', 'es'] &&
+             data.darkModePreference in ['system', 'dark', 'light'] &&
+             data.accessTier in ['standard', 'pro', 'creator'] &&
+             data.notificationsEnabled is bool &&
+             data.backgroundPlaybackEnabled is bool &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidStreamConfig(data) {
+      return data.keys().hasAll([
+               'userId', 'label', 'rtmpUrl', 'streamKey', 'wsRelayUrl',
+               'resolution', 'lowLatencyEnabled', 'audioBitrateKbps',
+               'createdAt', 'updatedAt'
+             ]) &&
+             data.keys().hasOnly([
+               'userId', 'label', 'rtmpUrl', 'streamKey', 'wsRelayUrl',
+               'resolution', 'lowLatencyEnabled', 'audioBitrateKbps',
+               'createdAt', 'updatedAt'
+             ]) &&
+             data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.label is string && data.label.size() >= 1 && data.label.size() <= 60 &&
+             data.rtmpUrl is string && data.rtmpUrl.size() >= 1 && data.rtmpUrl.size() <= 300 &&
+             data.streamKey is string && data.streamKey.size() <= 200 &&
+             data.wsRelayUrl is string && data.wsRelayUrl.size() <= 300 &&
+             data.resolution in ['480p', '720p', '1080p'] &&
+             data.lowLatencyEnabled is bool &&
+             data.audioBitrateKbps is int && data.audioBitrateKbps >= 64 && data.audioBitrateKbps <= 320 &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidActivationKey(data) {
+      return data.keys().hasAll([
+               'userId', 'keyCode', 'tier', 'status', 'label', 'createdAt', 'updatedAt'
+             ]) &&
+             data.keys().hasOnly([
+               'userId', 'keyCode', 'tier', 'status', 'label', 'createdAt', 'updatedAt'
+             ]) &&
+             data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.keyCode is string && data.keyCode.size() >= 6 && data.keyCode.size() <= 40 &&
+             data.tier in ['pro', 'creator'] &&
+             data.status in ['active', 'revoked'] &&
+             data.label is string && data.label.size() >= 1 && data.label.size() <= 80 &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll([
+               'userId', 'title', 'body', 'category', 'readFlag', 'createdAt'
+             ]) &&
+             data.keys().hasOnly([
+               'userId', 'title', 'body', 'category', 'readFlag', 'createdAt'
+             ]) &&
+             data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 100 &&
+             data.body is string && data.body.size() >= 1 && data.body.size() <= 300 &&
+             data.category in ['live', 'donation', 'system', 'activation'] &&
+             data.readFlag is bool &&
+             isValidTimestamp(data.createdAt);
+    }
+
+    function isValidFeedback(data) {
+      return data.keys().hasAll([
+               'userId', 'category', 'rating', 'comment', 'appVersion', 'createdAt'
+             ]) &&
+             data.keys().hasOnly([
+               'userId', 'category', 'rating', 'comment', 'appVersion', 'createdAt'
+             ]) &&
+             data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.category in ['streaming', 'audio_video', 'ui_ux', 'feature', 'bug'] &&
+             data.rating is int && data.rating >= 1 && data.rating <= 5 &&
+             data.comment is string && data.comment.size() >= 3 && data.comment.size() <= 600 &&
+             data.appVersion is string && data.appVersion.size() >= 1 && data.appVersion.size() <= 30 &&
+             isValidTimestamp(data.createdAt);
+    }
+
+    function isValidStream(data) {
+      return data.keys().hasAll([
+               'hostUserId', 'hostName', 'title', 'category', 'visibility',
+               'resolution', 'sourceType', 'status', 'lowLatencyWs',
+               'viewerCount', 'peakViewers', 'totalDonationsInr',
+               'durationSeconds', 'bitrateKbps', 'latencyMs',
+               'createdAt', 'updatedAt'
+             ]) &&
+             data.keys().hasOnly([
+               'hostUserId', 'hostName', 'title', 'category', 'visibility',
+               'resolution', 'sourceType', 'status', 'lowLatencyWs',
+               'viewerCount', 'peakViewers', 'totalDonationsInr',
+               'durationSeconds', 'bitrateKbps', 'latencyMs',
+               'createdAt', 'updatedAt'
+             ]) &&
+             data.hostUserId is string && data.hostUserId.size() >= 1 && data.hostUserId.size() <= 128 &&
+             data.hostName is string && data.hostName.size() >= 1 && data.hostName.size() <= 60 &&
+             data.title is string && data.title.size() >= 2 && data.title.size() <= 100 &&
+             data.category is string && data.category.size() >= 1 && data.category.size() <= 40 &&
+             data.visibility in ['public', 'private'] &&
+             data.resolution in ['480p', '720p', '1080p'] &&
+             data.sourceType in ['camera', 'gallery'] &&
+             data.status in ['live', 'ended'] &&
+             data.lowLatencyWs is bool &&
+             data.viewerCount is int && data.viewerCount >= 0 && data.viewerCount <= 10000000 &&
+             data.peakViewers is int && data.peakViewers >= 0 && data.peakViewers <= 10000000 &&
+             data.totalDonationsInr is int && data.totalDonationsInr >= 0 && data.totalDonationsInr <= 100000000 &&
+             data.durationSeconds is int && data.durationSeconds >= 0 && data.durationSeconds <= 864000 &&
+             data.bitrateKbps is int && data.bitrateKbps >= 500 && data.bitrateKbps <= 25000 &&
+             data.latencyMs is int && data.latencyMs >= 0 && data.latencyMs <= 60000 &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidComment(data) {
+      return data.keys().hasAll([
+               'streamId', 'authorId', 'authorName', 'visibility',
+               'message', 'messageType', 'donationAmount', 'currency', 'createdAt'
+             ]) &&
+             data.keys().hasOnly([
+               'streamId', 'authorId', 'authorName', 'visibility',
+               'message', 'messageType', 'donationAmount', 'currency', 'createdAt'
+             ]) &&
+             data.streamId is string && data.streamId.size() >= 1 && data.streamId.size() <= 128 &&
+             data.authorId is string && data.authorId.size() >= 1 && data.authorId.size() <= 128 &&
+             data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 60 &&
+             data.visibility == 'public' &&
+             data.message is string && data.message.size() >= 1 && data.message.size() <= 300 &&
+             data.messageType in ['chat', 'donation'] &&
+             data.currency in ['INR', 'USD'] &&
+             data.donationAmount is int &&
+             (
+               (data.messageType == 'chat' && data.donationAmount == 0) ||
+               (data.messageType == 'donation' && data.donationAmount >= 10 && data.donationAmount <= 100000)
+             ) &&
+             isValidTimestamp(data.createdAt);
+    }
+
+    // --- COLLECTION RULES ---
+
+    // Private user profiles (PII strictly owner-isolated)
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if isOwner(userId);
+
+      allow create: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       isValidUserProfile(incoming()) &&
+                       incoming().userId == request.auth.uid;
+
+      allow update: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       isValidUserProfile(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'displayName', 'channelName', 'email', 'bio', 'photoUrl',
+                         'preferredLanguage', 'darkModePreference', 'accessTier',
+                         'activeKeyCode', 'notificationsEnabled',
+                         'backgroundPlaybackEnabled', 'updatedAt'
+                       ]);
+
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      // Private RTMP & WebSocket stream configurations
+      match /streamConfigs/{configId} {
+        allow get: if isOwner(userId) && isValidId(configId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(configId) &&
+                         isValidStreamConfig(incoming()) &&
+                         incoming().userId == request.auth.uid;
+
+        allow update: if isOwner(userId) &&
+                         isValidId(configId) &&
+                         isValidStreamConfig(incoming()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'label', 'rtmpUrl', 'streamKey', 'wsRelayUrl',
+                           'resolution', 'lowLatencyEnabled', 'audioBitrateKbps', 'updatedAt'
+                         ]);
+
+        allow delete: if isOwner(userId) && isValidId(configId);
+      }
+
+      // Activation keys for studio access management
+      match /activationKeys/{keyId} {
+        allow get: if isOwner(userId) && isValidId(keyId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(keyId) &&
+                         isValidActivationKey(incoming()) &&
+                         incoming().userId == request.auth.uid;
+
+        allow update: if isOwner(userId) &&
+                         isValidId(keyId) &&
+                         isValidActivationKey(incoming()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().keyCode == existing().keyCode &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'status', 'label', 'tier', 'updatedAt'
+                         ]);
+
+        allow delete: if isOwner(userId) && isValidId(keyId);
+      }
+
+      // Push notification & alert history
+      match /notifications/{notifId} {
+        allow get: if isOwner(userId) && isValidId(notifId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(notifId) &&
+                         isValidNotification(incoming()) &&
+                         incoming().userId == request.auth.uid;
+
+        allow update: if isOwner(userId) &&
+                         isValidId(notifId) &&
+                         isValidNotification(incoming()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['readFlag']);
+
+        allow delete: if isOwner(userId) && isValidId(notifId);
+      }
+
+      // User feedback submissions (immutable once submitted)
+      match /feedback/{feedbackId} {
+        allow get: if isOwner(userId) && isValidId(feedbackId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(feedbackId) &&
+                         isValidFeedback(incoming()) &&
+                         incoming().userId == request.auth.uid;
+
+        allow update: if false;
+
+        allow delete: if isOwner(userId) && isValidId(feedbackId);
+      }
+    }
+
+    // Live Streams & Broadcast Analytics
+    match /streams/{streamId} {
+      allow get: if isSignedIn() &&
+                    isValidId(streamId) &&
+                    (existing().visibility == 'public' || existing().hostUserId == request.auth.uid);
+
+      allow list: if isSignedIn() &&
+                     (existing().visibility == 'public' || existing().hostUserId == request.auth.uid);
+
+      allow create: if isSignedIn() &&
+                       isValidId(streamId) &&
+                       isValidStream(incoming()) &&
+                       incoming().hostUserId == request.auth.uid &&
+                       incoming().status == 'live';
+
+      // Action-based update with terminal state locking once status == 'ended'
+      allow update: if isSignedIn() &&
+                       isValidId(streamId) &&
+                       isValidStream(incoming()) &&
+                       incoming().hostUserId == existing().hostUserId &&
+                       incoming().createdAt == existing().createdAt &&
+                       existing().status == 'live' && (
+                         // Action 1: Host updates live broadcast telemetry or ends the stream
+                         (
+                           existing().hostUserId == request.auth.uid &&
+                           incoming().diff(existing()).affectedKeys().hasOnly([
+                             'title', 'category', 'visibility', 'resolution',
+                             'sourceType', 'status', 'lowLatencyWs', 'viewerCount',
+                             'peakViewers', 'totalDonationsInr', 'durationSeconds',
+                             'bitrateKbps', 'latencyMs', 'updatedAt'
+                           ])
+                         ) ||
+                         // Action 2: Viewer updates engagement / donation tally on public live stream
+                         (
+                           existing().visibility == 'public' &&
+                           incoming().totalDonationsInr >= existing().totalDonationsInr &&
+                           incoming().peakViewers >= existing().peakViewers &&
+                           incoming().diff(existing()).affectedKeys().hasOnly([
+                             'viewerCount', 'peakViewers', 'totalDonationsInr', 'updatedAt'
+                           ])
+                         )
+                       );
+
+      allow delete: if isSignedIn() &&
+                       isValidId(streamId) &&
+                       existing().hostUserId == request.auth.uid;
+
+      // Real-time stream comments & SuperChat donations
+      match /comments/{commentId} {
+        allow get: if isSignedIn() &&
+                      isValidId(streamId) &&
+                      isValidId(commentId) &&
+                      existing().visibility == 'public';
+
+        allow list: if isSignedIn() &&
+                       existing().visibility == 'public';
+
+        allow create: if isSignedIn() &&
+                         isValidId(streamId) &&
+                         isValidId(commentId) &&
+                         isValidComment(incoming()) &&
+                         incoming().authorId == request.auth.uid &&
+                         incoming().streamId == streamId &&
+                         exists(/databases/$(database)/documents/streams/$(streamId));
+
+        allow update: if false;
+
+        allow delete: if isSignedIn() &&
+                         isValidId(streamId) &&
+                         isValidId(commentId) &&
+                         existing().authorId == request.auth.uid;
+      }
+    }
+  }
+}

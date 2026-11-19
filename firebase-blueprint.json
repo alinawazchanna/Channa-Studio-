@@ -1,0 +1,233 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Private authenticated creator/viewer profile and preferences",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID of the owner" },
+        "displayName": { "type": "string", "description": "User display name" },
+        "channelName": { "type": "string", "description": "Creator YouTube / StreamPulse channel name" },
+        "email": { "type": "string", "format": "email", "description": "Owner email (private PII)" },
+        "bio": { "type": "string", "description": "Short channel bio" },
+        "photoUrl": { "type": "string", "description": "Optional profile avatar URL" },
+        "preferredLanguage": { "type": "string", "enum": ["en", "hi", "hinglish", "es"] },
+        "darkModePreference": { "type": "string", "enum": ["system", "dark", "light"] },
+        "accessTier": { "type": "string", "enum": ["standard", "pro", "creator"] },
+        "activeKeyCode": { "type": "string", "description": "Optional active studio activation key code" },
+        "notificationsEnabled": { "type": "boolean" },
+        "backgroundPlaybackEnabled": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Written with FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Written with FieldValue.serverTimestamp()" }
+      },
+      "required": [
+        "userId",
+        "displayName",
+        "channelName",
+        "email",
+        "bio",
+        "preferredLanguage",
+        "darkModePreference",
+        "accessTier",
+        "notificationsEnabled",
+        "backgroundPlaybackEnabled",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "StreamConfig": {
+      "title": "StreamConfig",
+      "description": "Private creator RTMP server URL, secret stream key, and WebSocket low-latency relay configuration",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "label": { "type": "string" },
+        "rtmpUrl": { "type": "string" },
+        "streamKey": { "type": "string" },
+        "wsRelayUrl": { "type": "string" },
+        "resolution": { "type": "string", "enum": ["480p", "720p", "1080p"] },
+        "lowLatencyEnabled": { "type": "boolean" },
+        "audioBitrateKbps": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Written with FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Written with FieldValue.serverTimestamp()" }
+      },
+      "required": [
+        "userId",
+        "label",
+        "rtmpUrl",
+        "streamKey",
+        "wsRelayUrl",
+        "resolution",
+        "lowLatencyEnabled",
+        "audioBitrateKbps",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "LiveStream": {
+      "title": "LiveStream",
+      "description": "Public or private live broadcast room metadata and analytics summary (never stores streamKey)",
+      "type": "object",
+      "properties": {
+        "hostUserId": { "type": "string" },
+        "hostName": { "type": "string" },
+        "title": { "type": "string" },
+        "category": { "type": "string" },
+        "visibility": { "type": "string", "enum": ["public", "private"] },
+        "resolution": { "type": "string", "enum": ["480p", "720p", "1080p"] },
+        "sourceType": { "type": "string", "enum": ["camera", "gallery"] },
+        "status": { "type": "string", "enum": ["live", "ended"] },
+        "lowLatencyWs": { "type": "boolean" },
+        "viewerCount": { "type": "integer" },
+        "peakViewers": { "type": "integer" },
+        "totalDonationsInr": { "type": "integer" },
+        "durationSeconds": { "type": "integer" },
+        "bitrateKbps": { "type": "integer" },
+        "latencyMs": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Written with FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Written with FieldValue.serverTimestamp()" }
+      },
+      "required": [
+        "hostUserId",
+        "hostName",
+        "title",
+        "category",
+        "visibility",
+        "resolution",
+        "sourceType",
+        "status",
+        "lowLatencyWs",
+        "viewerCount",
+        "peakViewers",
+        "totalDonationsInr",
+        "durationSeconds",
+        "bitrateKbps",
+        "latencyMs",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "StreamComment": {
+      "title": "StreamComment",
+      "description": "Real-time live chat comment or SuperChat donation message inside a stream",
+      "type": "object",
+      "properties": {
+        "streamId": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "visibility": { "type": "string", "enum": ["public"] },
+        "message": { "type": "string" },
+        "messageType": { "type": "string", "enum": ["chat", "donation"] },
+        "donationAmount": { "type": "integer" },
+        "currency": { "type": "string", "enum": ["INR", "USD"] },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Written with FieldValue.serverTimestamp()" }
+      },
+      "required": [
+        "streamId",
+        "authorId",
+        "authorName",
+        "visibility",
+        "message",
+        "messageType",
+        "donationAmount",
+        "currency",
+        "createdAt"
+      ]
+    },
+    "ActivationKey": {
+      "title": "ActivationKey",
+      "description": "User activation key record for managing studio access permissions",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "keyCode": { "type": "string" },
+        "tier": { "type": "string", "enum": ["pro", "creator"] },
+        "status": { "type": "string", "enum": ["active", "revoked"] },
+        "label": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Written with FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Written with FieldValue.serverTimestamp()" }
+      },
+      "required": [
+        "userId",
+        "keyCode",
+        "tier",
+        "status",
+        "label",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "AppNotification": {
+      "title": "AppNotification",
+      "description": "User notification inbox item synced alongside Android push alerts",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "body": { "type": "string" },
+        "category": { "type": "string", "enum": ["live", "donation", "system", "activation"] },
+        "readFlag": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Written with FieldValue.serverTimestamp()" }
+      },
+      "required": [
+        "userId",
+        "title",
+        "body",
+        "category",
+        "readFlag",
+        "createdAt"
+      ]
+    },
+    "UserFeedback": {
+      "title": "UserFeedback",
+      "description": "User-submitted feedback rating and comment",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "category": { "type": "string", "enum": ["streaming", "audio_video", "ui_ux", "feature", "bug"] },
+        "rating": { "type": "integer" },
+        "comment": { "type": "string" },
+        "appVersion": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Written with FieldValue.serverTimestamp()" }
+      },
+      "required": [
+        "userId",
+        "category",
+        "rating",
+        "comment",
+        "appVersion",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private user profile and studio preferences"
+    },
+    "/users/{userId}/streamConfigs/{configId}": {
+      "schema": { "$ref": "#/entities/StreamConfig" },
+      "description": "Private RTMP URL, secret stream key, and WebSocket relay settings"
+    },
+    "/users/{userId}/activationKeys/{keyId}": {
+      "schema": { "$ref": "#/entities/ActivationKey" },
+      "description": "Activated and managed studio access keys"
+    },
+    "/users/{userId}/notifications/{notifId}": {
+      "schema": { "$ref": "#/entities/AppNotification" },
+      "description": "Push notification and live alert history"
+    },
+    "/users/{userId}/feedback/{feedbackId}": {
+      "schema": { "$ref": "#/entities/UserFeedback" },
+      "description": "Submitted user feedback ratings and comments"
+    },
+    "/streams/{streamId}": {
+      "schema": { "$ref": "#/entities/LiveStream" },
+      "description": "Live broadcast rooms and historical analytics records"
+    },
+    "/streams/{streamId}/comments/{commentId}": {
+      "schema": { "$ref": "#/entities/StreamComment" },
+      "description": "Real-time viewer comments and SuperChat donations"
+    }
+  }
+}

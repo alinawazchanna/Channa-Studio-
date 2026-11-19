@@ -1,0 +1,6 @@
+{
+  "name": "StreamPulse",
+  "description": "Live streaming studio and interactive viewer app with RTMP/WebSocket streaming, gallery video broadcast, real-time chat and donations, analytics, activation keys, background playback, and multi-language dark/light UI.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
